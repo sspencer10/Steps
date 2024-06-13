@@ -26,7 +26,7 @@ cp StepsConfigTemplate.xcconfig StepsConfig.xcconfig
 ```sh
 cp StepsWidgetConfigTemplate.xcconfig StepsWidgetConfig.xcconfig
 ```
-* ❗️Make sure you at .widget to this `PRODUCT_BUNDLE_IDENTIFIER` ie. com.name.steps.widget
+* ❗️Make sure you're at .widget to this `PRODUCT_BUNDLE_IDENTIFIER` ie. com.name.steps.widget
 * Build the project
 
 * Checkout a new branch (from the `dev` branch) to work on an issue
