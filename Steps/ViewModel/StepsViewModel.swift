@@ -15,80 +15,96 @@ import PhotosUI
 import CoreTransferable
 
 
-class StepsViewModel: ObservableObject {
+@MainActor class StepsViewModel: ObservableObject {
     var healthStore: HKHealthStore?
     var query: HKStatisticsCollectionQuery?
-    @AppStorage(Constants.stepCountKey, store: UserDefaults(suiteName: Constants.appGroupID)) var stepCount: Int = 0
-
-    // 👇🏼 Still experimental
-    //    @Dependency.AppStorage(
-    //        Constants.stepCountKey,
-    //        store: .init(suitename: Constants.appGroupID)
-    //    ) var stepCount: Int = 0
-
-
 
     @Dependency(\.userDefaults) var userDefaults
+    @AppStorage(Constants.stepCountKey, store: UserDefaults(suiteName: Constants.appGroupID)) var stepCount: Int = 0
 
     @Published var weekSteps: [Step] = [] // Data for the week chart
     @Published var monthSteps: [Step] = [] // Data for the month chart
     @Published var calories: [Calorie] = []
     @Published var totalDistance: [Distance] = []
-
     @Published var steps: [Step] = []
+    @Published var units: String
     @AppStorage(Constants.goalKey, store: .appGroup) var goal: Int = 10_000
+    @AppStorage(Constants.metricKey) var metric: Bool = false
+    @AppStorage(Constants.refreshKey) var shouldRefresh: Bool = false
+    @AppStorage(Constants.unitsKey) var unitPref: String = "ft"
+    
+    var x = HKUnit.meter()
+    var z = 0
 
+    //var stepCount: Int = 0
+    
     init() {
         if HKHealthStore.isHealthDataAvailable() {
             healthStore = HKHealthStore()
         }
-
+        
         self.backgroundImage = loadImage(key: Constants.backgroundImageKey)
-    }
-
-    var currentSteps: Int {
-        steps.last?.count ?? 0
-    }
-
-    var currentCalories: Int {
-        calories.last?.value ?? 0
-    }
-
-    var currentDistance: Int {
-        totalDistance.last?.value ?? 0
-    }
-
-    var soccerFieldsWalkedString: String {
-        let numOfFields = currentSteps / 144 // For every 144 Steps you've walked about 1 soccer field.
-
-        if numOfFields > 1 {
-            return String(format: Constants.walkedCustomSoccerFieldToday, numOfFields)
-        } else if numOfFields == 0 {
-            return Constants.walkedFullSoccerFieldToday
+        units = "m"
+        if (self.metric) {
+            units = "m"
         } else {
-            return Constants.walkedOneSoccerFieldToday
+            units = "ft"
         }
     }
-
-    var checkPointOneReached: Bool {
-        Double(currentSteps) >= (Double(goal) * 0.25)
+    
+    var unit: String {
+        
+        return units
     }
+    
+        var currentSteps: Int {
+            steps.last?.count ?? 0
+        }
+        
+        var currentCalories: Int {
+            calories.last?.value ?? 0
+        }
+        
+        var currentDistance: Int {
+            totalDistance.last?.value ?? 0
+        }
 
-    var checkPointTwoReached: Bool {
-        Double(currentSteps) >= (Double(goal) * 0.5)
-    }
+        
+        var soccerFieldsWalkedString: String {
+            let numOfFields = currentSteps / 128 // For every 144 Steps you've walked about 1 football field.
+            
+            if numOfFields > 1 {
+                return String(format: Constants.walkedCustomSoccerFieldToday, numOfFields)
+            } else if numOfFields == 0 {
+                return Constants.walkedFullSoccerFieldToday
+            } else {
+                return Constants.walkedOneSoccerFieldToday
+            }
+        }
+        
+        var checkPointOneReached: Bool {
+            Double(currentSteps) >= (Double(goal) * 0.25)
+        }
+        
+        var checkPointTwoReached: Bool {
+            Double(currentSteps) >= (Double(goal) * 0.5)
+        }
+        
+        var checkPointThreeReached: Bool {
+            Double(currentSteps) >= (Double(goal) * 0.75)
+        }
+        
+        var checkPointFourReached: Bool {
+            currentSteps >= goal
+        }
+    
+    var currentDistance2: Double = 0
+    
 
-    var checkPointThreeReached: Bool {
-        Double(currentSteps) >= (Double(goal) * 0.75)
-    }
-
-    var checkPointFourReached: Bool {
-        currentSteps >= goal
-    }
-
+    
     func calculateSteps(completion: @escaping (HKStatisticsCollection?) -> Void) {
         let stepType = HKQuantityType.quantityType(forIdentifier: HKQuantityTypeIdentifier.stepCount)!
-        let startDate = Calendar.current.date(byAdding: .day, value: -7, to: Date())
+        let startDate = Calendar.current.date(byAdding: .day, value: -6, to: Date())
         let anchorDate = Date.sundayAt12AM()
         let daily = DateComponents(day: 1)
         let predicate = HKQuery.predicateForSamples(withStart: startDate, end: Date(), options: .strictStartDate)
@@ -106,6 +122,8 @@ class StepsViewModel: ObservableObject {
             healthStore.execute(query)
         }
     }
+    
+
 
     func calculateLastWeeksSteps(completion: @escaping (HKStatisticsCollection?) -> Void) {
         let stepType = HKQuantityType.quantityType(forIdentifier: HKQuantityTypeIdentifier.stepCount)!
@@ -256,17 +274,22 @@ class StepsViewModel: ObservableObject {
         }
     }
 
-    func updateDistanceUIFromStats(_ statsCollection: HKStatisticsCollection) {
+    func updateDistanceUIFromStats(_ statsCollection: HKStatisticsCollection, _ myUnit: HKUnit) {
         let startDate = Calendar.current.date(byAdding: .day, value: -7, to: Date())!
         let endDate = Date()
-
-        statsCollection.enumerateStatistics(from: startDate, to: endDate) { stats, stop in
-            let distanceWalked = stats.sumQuantity()?.doubleValue(for: .meter())
+        statsCollection.enumerateStatistics(from: startDate, to: endDate) { 
+            stats, stop in
+            let distanceWalked = stats.sumQuantity()?.doubleValue(for: myUnit)
             let distance = Distance(value: Int(distanceWalked ?? 0), date: stats.startDate)
-
             DispatchQueue.main.async {
                 self.totalDistance.append(distance)
+                if (self.currentDistance2 == 0) {
+                    self.currentDistance2 = Double(self.currentDistance)
+                    self.update()
+                }
             }
+                
+            
         }
     }
 
@@ -280,6 +303,71 @@ class StepsViewModel: ObservableObject {
             completion(success)
         }
     }
+    
+    func update() {
+        
+        // clear units label
+        DispatchQueue.main.async {
+            self.units.removeAll()
+        }
+        
+        // update data
+        self.requestAuthorization { isSuccess in
+            if isSuccess == true {
+                self.calculateSteps { statsCollection in
+                    if let statsCollection = statsCollection {
+                        self.updateUIFromStats(statsCollection)
+                    }
+                }
+                self.calculateLastWeeksSteps { statsCollection in
+                    if let statsCollection = statsCollection {
+                        self.updateWeekUIFromStats(statsCollection)
+                    }
+                }
+                self.calculateMonthSteps { statsCollection in
+                    if let statsCollection = statsCollection {
+                        self.updateMonthUIFromStats(statsCollection)
+                    }
+                }
+                self.calculateCalories { statsCollection in
+                    if let statsCollection = statsCollection {
+                        self.updateCalorieUIFromStats(statsCollection)
+                    }
+                }
+                // distance calculation
+                self.calculateDistance { statsCollection in
+                    if let statsCollection = statsCollection {
+                        if (self.metric) {
+                            self.updateDistanceUIFromStats(statsCollection, .meter())
+                            DispatchQueue.main.async {
+                                if (self.currentDistance > 1000) {
+                                    self.units = "km"
+                                    self.currentDistance2 = Double(self.currentDistance) / 1000
+                                } else {
+                                    self.units = "m"
+                                    self.currentDistance2 = Double(self.currentDistance)
+                                }
+                            }
+                        } else {
+                            self.updateDistanceUIFromStats(statsCollection, .foot())
+                            DispatchQueue.main.async {
+                                if (self.currentDistance > 5280) {
+                                    self.units = "miles"
+                                    self.currentDistance2 = Double(self.currentDistance) / 5280
+                                } else {
+                                    self.units = "ft"
+                                    self.currentDistance2 = Double(self.currentDistance)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    
+    
 
     // MARK: - Background Image
 

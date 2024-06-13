@@ -12,11 +12,14 @@ import DependenciesAdditions
 class SettingsViewModel: ObservableObject {
     @Published var showingEditView = false
     @Published var showContributors: Bool = false
-
     @AppStorage(Constants.notificationKey) var notificationsOn = false
+    @AppStorage(Constants.metricKey) var metric: Bool = false
+    @AppStorage(Constants.metricKey) var metric2: Bool = false
+
+    @AppStorage(Constants.unitsKey) var unitPref: String = "ft"
     @Dependency(\.userNotificationCenter) var userNotificationCenter
     @Dependency(\.logger) var logger
-
+    
     func requestNotificationAuth() async {
         do {
             let isAuthorized = try await userNotificationCenter.requestAuthorization(

@@ -6,9 +6,11 @@
 //
 
 import SwiftUI
+import HealthKit
 
 struct HomeView: View {
     @ObservedObject var viewModel: StepsViewModel
+    @ObservedObject var settingsViewModel: SettingsViewModel
 
     var body: some View {
         NavigationStack {
@@ -17,7 +19,7 @@ struct HomeView: View {
                     .edgesIgnoringSafeArea(.all)
 
                 NavigationLink {
-                    StepsDetailView(viewModel: viewModel)
+                    StepsDetailView(viewModel: viewModel, settingsViewModel: settingsViewModel, units: StepsViewModel())
                 } label: {
                     VStack {
                         Spacer()
@@ -32,35 +34,7 @@ struct HomeView: View {
                 }
             }
             .onAppear {
-                viewModel.requestAuthorization { isSuccess in
-                    if isSuccess == true {
-                        viewModel.calculateSteps { statsCollection in
-                            if let statsCollection = statsCollection {
-                                viewModel.updateUIFromStats(statsCollection)
-                            }
-                        }
-                        viewModel.calculateLastWeeksSteps { statsCollection in
-                            if let statsCollection = statsCollection {
-                                viewModel.updateWeekUIFromStats(statsCollection)
-                            }
-                        }
-                        viewModel.calculateMonthSteps { statsCollection in
-                            if let statsCollection = statsCollection {
-                                viewModel.updateMonthUIFromStats(statsCollection)
-                            }
-                        }
-                        viewModel.calculateCalories { statsCollection in
-                            if let statsCollection = statsCollection {
-                                viewModel.updateCalorieUIFromStats(statsCollection)
-                            }
-                        }
-                        viewModel.calculateDistance { statsCollection in
-                            if let statsCollection = statsCollection {
-                                viewModel.updateDistanceUIFromStats(statsCollection)
-                            }
-                        }
-                    }
-                }
+                viewModel.update()
             }
         }
     }
@@ -68,7 +42,7 @@ struct HomeView: View {
 
 struct HomeView_Previews: PreviewProvider {
     static var previews: some View {
-        HomeView(viewModel: StepsViewModel())
+        HomeView(viewModel: StepsViewModel(), settingsViewModel: SettingsViewModel())
     }
 }
 

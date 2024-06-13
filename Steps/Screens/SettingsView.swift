@@ -25,6 +25,15 @@ struct SettingsView: View {
                     } header: {
                         Label(Constants.notificationSettings, systemImage: "bell")
                     }
+                    
+                    Section {
+                        Toggle(Constants.units, isOn: stepsViewModel.$metric).onTapGesture {
+                            stepsViewModel.shouldRefresh = true
+                        }
+
+                    } header: {
+                        Label(Constants.unitsSettings, systemImage: "ruler")
+                    }
 
                     Section {
                         if stepsViewModel.backgroundImage != nil {
@@ -83,4 +92,5 @@ struct SettingsView_Previews: PreviewProvider {
     static var previews: some View {
         SettingsView(stepsViewModel: StepsViewModel())
     }
+
 }

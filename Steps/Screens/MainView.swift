@@ -12,7 +12,7 @@ struct MainView: View {
 
     var body: some View {
         TabView {
-            HomeView(viewModel: stepsViewModel)
+            HomeView(viewModel: stepsViewModel, settingsViewModel: SettingsViewModel())
                 .tabItem {
                     Label(Constants.homeTab, systemImage: "house")
                 }
